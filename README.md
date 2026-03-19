@@ -47,7 +47,8 @@ pip install -r requirements.txt
 ```bash
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
 NOTION_TOKEN=secret_xxxxxxxxxxxxxxxxxxxxxx
-NOTION_DB_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+NOTION_DATABASE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
 ```
 
 **Notion 数据库字段要求（区分大小写）：**
@@ -89,9 +90,9 @@ python test_fetch.py
 ## 🤖 自动任务模式（GitHub Actions）
 
 ### 功能
-- 每周六早上 10:00（北京时间）自动执行
+- 每周六早上 10:00（东京时间）自动执行
 - 抓取最新 Newsletter → 生成摘要 → 写入 Notion
-- 通过飞书发送执行结果通知
+- 通过飞书发送执行结果通知（包含完整 AI 摘要）
 
 ### 部署步骤
 
@@ -102,7 +103,7 @@ python test_fetch.py
 |-------------|-----|
 | `OPENAI_API_KEY` | 你的 OpenAI API Key |
 | `NOTION_TOKEN` | Notion Integration Token |
-| `NOTION_DATABASE_ID` | Notion 数据库 ID |
+| `NOTION_DATABASE_ID` | Notion 数据库 ID（纯 UUID 格式） |
 | `FEISHU_WEBHOOK_URL` | 飞书机器人 Webhook URL |
 
 #### 2. GitHub Variables 配置
@@ -110,11 +111,20 @@ python test_fetch.py
 
 | Variable 名称 | 值 |
 |--------------|-----|
-| `LAST_ISSUE_NUMBER` | `323`（起始 issue 号，下次会自动 +1）|
+| `LAST_ISSUE_NUMBER` | 当前最新一期号（如 344），下次会自动 +1 |
 
 #### 3. 手动触发测试
 在 GitHub 仓库 Actions 页面，选择 "Weekly Newsletter Automation" → Run workflow
 
+**调试模式**：触发时设置 `debug_mode: true`，可跳过 AI 摘要生成，节省 token
+
 #### 4. 飞书机器人配置
 1. 在飞书群中添加自定义机器人
 2. 复制 Webhook URL 到 GitHub Secrets
+
+### 工作原理
+1. 读取 `LAST_ISSUE_NUMBER`，自动 +1 获取最新一期
+2. 抓取 Newsletter 网页内容
+3. 调用 GPT 生成中英文摘要
+4. 写入 Notion 数据库
+5. 通过飞书发送通知（包含完整摘要内容）
