@@ -8,11 +8,13 @@
 手动访问网页，输入 Newsletter 链接，一键完成抓取→摘要→写入 Notion。
 
 ### 自动任务模式（GitHub Actions）
-每周六 10:00 自动抓取最新 Newsletter，结果写入 Notion 并通过飞书通知。
+每周六早上 10:00（东京时间）自动抓取最新 Newsletter，结果写入 Notion 并通过飞书通知。
 
 ## 📁 目录结构
 - `app_launch.py`：Gradio 网页入口（**主要运行文件**）
 - `newsletter_tool.py`：核心逻辑库（抓取、GPT、Notion）
+- `run_debug.py`：GitHub Actions 调试模式入口（跳过 AI 摘要）
+- `run_newsletter.py`：GitHub Actions 正式模式入口
 - `Ai Newsletter Openai.ipynb`：Jupyter Notebook 版本（已同步核心逻辑）
 - `test_fetch.py`：简单的单篇抓取测试脚本
 - `test_newsletter.py`：基于 pytest 的单元测试
@@ -47,7 +49,7 @@ pip install -r requirements.txt
 ```bash
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
 NOTION_TOKEN=secret_xxxxxxxxxxxxxxxxxxxxxx
-NOTION_DATABASE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+NOTION_DATABASE_ID=你的数据库ID
 FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
 ```
 
@@ -90,7 +92,7 @@ python test_fetch.py
 ## 🤖 自动任务模式（GitHub Actions）
 
 ### 功能
-- 每周六早上 10:00（东京时间）自动执行
+- 每周六早上 10:00（东京时间 UTC+9）自动执行
 - 抓取最新 Newsletter → 生成摘要 → 写入 Notion
 - 通过飞书发送执行结果通知（包含完整 AI 摘要）
 
@@ -103,7 +105,7 @@ python test_fetch.py
 |-------------|-----|
 | `OPENAI_API_KEY` | 你的 OpenAI API Key |
 | `NOTION_TOKEN` | Notion Integration Token |
-| `NOTION_DATABASE_ID` | Notion 数据库 ID（纯 UUID 格式） |
+| `NOTION_DATABASE_ID` | Notion 数据库 ID |
 | `FEISHU_WEBHOOK_URL` | 飞书机器人 Webhook URL |
 
 #### 2. GitHub Variables 配置
