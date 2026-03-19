@@ -38,15 +38,7 @@ jobs:
           echo "next_issue=$next" >> $GITHUB_OUTPUT
           echo "issue_url=https://www.deeplearning.ai/the-batch/issue-${next}/" >> $GITHUB_OUTPUT
 
-      - name: Debug environment variables
-        run: |
-          python -c "
-          import os
-          print('NOTION_TOKEN:', 'SET' if os.environ.get('NOTION_TOKEN') else 'NOT_SET')
-          print('NOTION_DATABASE_ID:', os.environ.get('NOTION_DATABASE_ID', 'NOT_SET'))
-          "
-
-      - name: Fetch and process newsletter
+      - name: Debug and fetch newsletter
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
@@ -55,11 +47,23 @@ jobs:
           ISSUE_URL: ${{ steps.next_issue.outputs.issue_url }}
           ISSUE_NUMBER: ${{ steps.next_issue.outputs.next_issue }}
         run: |
+          echo "=== DEBUG ==="
+          echo "NOTION_DATABASE_ID length: ${#NOTION_DATABASE_ID}"
+          echo "NOTION_TOKEN length: ${#NOTION_TOKEN}"
+          python -c "
+          import os
+          import sys
+          db_id = os.environ.get('NOTION_DATABASE_ID', 'EMPTY')
+          print(f'Python received NOTION_DATABASE_ID: [{db_id}]')
+          print(f'Length: {len(db_id)}')
+          if not db_id or len(db_id) < 10:
+              print('ERROR: NOTION_DATABASE_ID is empty or too short!')
+              sys.exit(1)
+          "
+          
           python -c "
           import os
           from newsletter_tool import fetch_newsletter_text, gpt_summary_and_translation, save_to_notion, send_feishu_notification
-          
-          print('NOTION_DATABASE_ID inside step:', os.environ.get('NOTION_DATABASE_ID', 'NOT_SET'))
           
           url = os.environ['ISSUE_URL']
           issue = os.environ['ISSUE_NUMBER']
