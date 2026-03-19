@@ -279,4 +279,119 @@ def _send_discord(webhook_url, success, issue_number, content, summary):
     
     payload = {
         "embeds": [{
-            "
+            "title": title,
+            "description": description,
+            "color": color,
+            "footer": {"text": f"执行时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"}
+        }]
+    }
+
+    try:
+        resp = requests.post(webhook_url, json=payload, timeout=10)
+        if resp.status_code in (200, 204):
+            print("✅ Discord 通知已发送")
+        else:
+            print(f"⚠️ Discord 通知发送失败: {resp.text}")
+    except Exception as e:
+        print(f"⚠️ Discord 通知发送异常: {str(e)}")
+
+
+# ==================== 抓取 ====================
+
+def fetch_newsletter_text(url):
+    """抓取网站文章主体文本"""
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return "⚠️ 无效的 URL：仅支持 http/https 协议"
+    except Exception:
+        return "⚠️ 无效的 URL 格式"
+
+    headers = {"User-Agent": "Mozilla/5.0"}
+    session = requests.Session()
+    session.trust_env = False
+    try:
+        r = session.get(
+            url,
+            headers=headers,
+            timeout=(10, 30),
+            proxies={"http": None, "https": None},
+        )
+    except requests.exceptions.Timeout:
+        return "⚠️ 抓取超时，请检查网络连接或稍后重试"
+    except requests.exceptions.RequestException as e:
+        return f"⚠️ 抓取失败：{str(e)}"
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    content = soup.find("article") or soup.find("div", class_="prose")
+    if not content:
+        return "⚠️ 抓取失败，找不到文章主体"
+
+    paragraphs = content.find_all(["p", "h2", "li"])
+    texts = [p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)]
+    return "\n".join(texts)
+
+
+# ==================== Notion 写入 ====================
+
+def _get_notion_client():
+    global _notion_client
+    if _notion_client is None:
+        _ensure_env()
+        from notion_client import Client
+        _notion_client = Client(auth=os.getenv("NOTION_TOKEN"), timeout_ms=30000)
+    return _notion_client
+
+
+def _get_database_id():
+    global _database_id
+    if _database_id is None:
+        _ensure_env()
+        _database_id = os.getenv("NOTION_DATABASE_ID")
+    return _database_id
+
+
+def save_to_notion(summary_markdown, url):
+    """将摘要写入 Notion 数据库"""
+    issue_match = re.search(r"issue-(\d+)", url)
+    issue_number = issue_match.group(1) if issue_match else "Unknown"
+
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    newsletter_name = os.getenv("NEWSLETTER_NAME", "The Batch")
+    title = f"{newsletter_name} - Issue {issue_number} ({today})"
+
+    children_blocks = []
+    for line in summary_markdown.strip().split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("## "):
+            children_blocks.append({
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {"rich_text": [{"type": "text", "text": {"content": line.replace("## ", "").strip()}}]},
+            })
+        else:
+            children_blocks.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {"rich_text": [{"type": "text", "text": {"content": line[:2000]}}]},
+            })
+
+    notion = _get_notion_client()
+    database_id = _get_database_id()
+
+    try:
+        notion.pages.create(
+            parent={"database_id": database_id},
+            properties={
+                "名称": {"title": [{"text": {"content": title}}]},
+                "期号": {"rich_text": [{"text": {"content": f"{issue_number}"}}]},
+                "链接": {"url": url},
+            },
+            children=children_blocks,
+        )
+    except Exception as e:
+        raise RuntimeError(f"Notion 写入失败：{str(e)}") from e
+    print(f"Wrote to Notion: {title}, blocks={len(children_blocks)}")
+

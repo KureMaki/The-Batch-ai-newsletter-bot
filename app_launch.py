@@ -7,7 +7,7 @@ import sys
 # 导入核心函数
 from newsletter_tool import (
     fetch_newsletter_text,
-    gpt_summary_and_translation,
+    generate_summary,
     save_to_notion,
 )
 
@@ -23,7 +23,7 @@ def handle_newsletter(url):
 
     yield "🤖 正在生成 AI 摘要与翻译（预计 30-120 秒）..."
     try:
-        summary_result = gpt_summary_and_translation(full_text)
+        summary_result = generate_summary(full_text)
     except Exception as e:
         yield f"❌ GPT 生成失败：{str(e)}"
         return
