@@ -19,7 +19,8 @@ summary = gpt_summary_and_translation(text)
 print('写入 Notion...')
 try:
     save_to_notion(summary, url)
-    send_feishu_notification(True, issue, summary[:500])
+    # 成功时发送摘要到飞书
+    send_feishu_notification(True, issue, None, summary)
     print('✅ 完成！')
 except Exception as e:
     msg = f'⚠️ Notion 写入失败：{str(e)}'

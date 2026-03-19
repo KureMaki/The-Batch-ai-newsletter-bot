@@ -12,8 +12,15 @@ import os
 from urllib.parse import urlparse
 
 
-def send_feishu_notification(success, issue_number, content):
-    """发送飞书通知"""
+def send_feishu_notification(success, issue_number, content, summary=None):
+    """发送飞书通知
+    
+    Args:
+        success: 是否成功
+        issue_number: Issue 编号
+        content: 简要信息（失败时为错误信息）
+        summary: 完整摘要内容（成功时可传入）
+    """
     import os
     
     webhook_url = os.getenv("FEISHU_WEBHOOK_URL")
@@ -24,11 +31,15 @@ def send_feishu_notification(success, issue_number, content):
     if success:
         title = "✅ Newsletter 更新完成"
         template = "green"
-        extra_text = f"Issue {issue_number} 已成功抓取并写入 Notion"
+        # 如果有摘要内容，显示前 2000 字（飞书限制）
+        if summary:
+            display_content = f"**Issue {issue_number}**\n\n{summary[:2000]}"
+        else:
+            display_content = f"**Issue {issue_number}**\n\n已成功抓取并写入 Notion"
     else:
         title = "❌ Newsletter 更新失败"
         template = "red"
-        extra_text = content
+        display_content = f"**Issue {issue_number}**\n\n{content}"
     
     payload = {
         "msg_type": "interactive",
@@ -42,7 +53,7 @@ def send_feishu_notification(success, issue_number, content):
                     "tag": "div",
                     "text": {
                         "tag": "lark_md",
-                        "content": f"**Issue {issue_number}**\n\n{extra_text}"
+                        "content": display_content
                     }
                 },
                 {"tag": "hr"},
