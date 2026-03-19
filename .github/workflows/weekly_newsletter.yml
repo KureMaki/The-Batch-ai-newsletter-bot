@@ -1,9 +1,9 @@
 name: Weekly Newsletter Automation
 
 on:
-  # 每周六早上 10:00 (北京时间 = UTC+8，所以是 UTC 2:00)
+  # 每周六早上 10:00 (东京时间 = UTC+9，所以是 UTC 1:00)
   schedule:
-    - cron: '0 2 * * 6'
+    - cron: '0 1 * * 6'
   # 允许手动触发（用于测试）
   workflow_dispatch:
     inputs:
