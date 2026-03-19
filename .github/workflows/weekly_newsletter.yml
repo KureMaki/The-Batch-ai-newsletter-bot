@@ -38,6 +38,14 @@ jobs:
           echo "next_issue=$next" >> $GITHUB_OUTPUT
           echo "issue_url=https://www.deeplearning.ai/the-batch/issue-${next}/" >> $GITHUB_OUTPUT
 
+      - name: Debug environment variables
+        run: |
+          python -c "
+          import os
+          print('NOTION_TOKEN:', 'SET' if os.environ.get('NOTION_TOKEN') else 'NOT_SET')
+          print('NOTION_DATABASE_ID:', os.environ.get('NOTION_DATABASE_ID', 'NOT_SET'))
+          "
+
       - name: Fetch and process newsletter
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -50,6 +58,8 @@ jobs:
           python -c "
           import os
           from newsletter_tool import fetch_newsletter_text, gpt_summary_and_translation, save_to_notion, send_feishu_notification
+          
+          print('NOTION_DATABASE_ID inside step:', os.environ.get('NOTION_DATABASE_ID', 'NOT_SET'))
           
           url = os.environ['ISSUE_URL']
           issue = os.environ['ISSUE_NUMBER']
