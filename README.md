@@ -7,9 +7,9 @@
 ## ✨ 功能特点
 
 - **自动抓取**：定时或手动抓取 The Batch Newsletter 文章
-- **AI 摘要**：使用 OpenAI 生成中英文双语摘要
+- **AI 摘要**：支持多种 LLM（OpenAI、Claude、DeepSeek 等）生成摘要
 - **Notion 存储**：自动写入 Notion 数据库
-- **飞书通知**：任务完成后通过飞书推送结果
+- **多平台通知**：支持飞书、Telegram、Discord 等 Webhook 通知
 - **零成本托管**：GitHub Actions 免费运行，无需服务器
 
 ## 📁 目录结构
@@ -18,9 +18,9 @@
 ├── newsletter_tool.py       # 核心逻辑库
 ├── app_launch.py           # Gradio 网页入口（本地使用）
 ├── run_newsletter.py       # GitHub Actions 自动任务入口
-├── test_fetch.py          # 抓取测试脚本
-├── test_newsletter.py     # pytest 单元测试
-├── requirements.txt       # Python 依赖
+├── test_fetch.py           # 抓取测试脚本
+├── test_newsletter.py      # pytest 单元测试
+├── requirements.txt         # Python 依赖
 └── .github/
     └── workflows/
         └── weekly_newsletter.yml  # GitHub Actions 工作流
@@ -46,15 +46,20 @@ pip install -r requirements.txt
 创建 `.env` 文件：
 
 ```bash
-# OpenAI API（必需）
-OPENAI_API_KEY=sk-your-openai-api-key
+# LLM API（必需，支持 OpenAI/Claude/DeepSeek 等）
+LLM_PROVIDER=openai                    # 可选: openai, anthropic, deepseek
+OPENAI_API_KEY=sk-xxx                  # OpenAI（LLM_PROVIDER=openai 时）
+# ANTHROPIC_API_KEY=sk-ant-xxx         # Claude（LLM_PROVIDER=anthropic 时）
+# DEEPSEEK_API_KEY=sk-xxx               # DeepSeek（LLM_PROVIDER=deepseek 时）
 
 # Notion（必需）
-NOTION_TOKEN=secret-your-notion-token
-NOTION_DATABASE_ID=your-database-id
+NOTION_TOKEN=secret-xxx
+NOTION_DATABASE_ID=xxx
 
-# 飞书通知（可选，不填则跳过通知）
+# 通知 Webhook（可选）
 FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+# TELEGRAM_BOT_TOKEN=xxx                # Telegram Bot Token
+# TELEGRAM_CHAT_ID=xxx                  # Telegram Chat ID
 ```
 
 ### 4. 配置 Notion 数据库
@@ -87,7 +92,7 @@ python app_launch.py
 
 | Secret | 说明 |
 |--------|------|
-| `OPENAI_API_KEY` | OpenAI API Key |
+| `OPENAI_API_KEY` | 你的 LLM API Key（根据 LLM_PROVIDER 选择） |
 | `NOTION_TOKEN` | Notion Integration Token |
 | `NOTION_DATABASE_ID` | Notion 数据库 ID |
 | `FEISHU_WEBHOOK_URL` | 飞书 Webhook URL（可选） |
@@ -104,6 +109,14 @@ python app_launch.py
 
 工作流会在每周六自动执行。你也可以手动触发：
 - 进入 Actions 页面 → 点击 "Weekly Newsletter Automation" → "Run workflow"
+
+### 自定义 LLM
+
+编辑 `newsletter_tool.py` 中的 `_get_llm_client()` 函数，支持：
+
+- **OpenAI**: `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`
+- **Claude**: `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`
+- **DeepSeek**: `deepseek-chat`, `deepseek-coder`
 
 ### 自定义执行时间
 
@@ -124,6 +137,7 @@ schedule:
 ## 🔧 依赖
 
 - `openai>=1.0.0`
+- `anthropic>=0.18.0` （如使用 Claude）
 - `gradio>=4.0.0`
 - `notion-client>=2.0.0`
 - `requests>=2.31.0`
@@ -133,8 +147,7 @@ schedule:
 ## ⚠️ 注意事项
 
 - 脚本会自动忽略系统代理环境变量
-- 默认使用 `gpt-4o` 模型，可在 `newsletter_tool.py` 中修改
-- 如果 Notion 写入失败，已生成的摘要会通过飞书通知显示
+- 如果 Notion 写入失败，已生成的摘要会通过通知显示
 
 ## 📝 License
 
