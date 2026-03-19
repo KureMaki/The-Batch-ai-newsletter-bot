@@ -123,7 +123,7 @@ def _get_database_id():
     global _database_id
     if _database_id is None:
         _ensure_env()
-        _database_id = os.getenv("NOTION_DB_ID")
+        _database_id = os.getenv("NOTION_DATABASE_ID")
     return _database_id
 
 
