@@ -6,6 +6,11 @@ on:
     - cron: '0 2 * * 6'
   # 允许手动触发（用于测试）
   workflow_dispatch:
+    inputs:
+      debug_mode:
+        description: '调试模式（跳过 AI 摘要，不消耗 token）'
+        required: false
+        default: 'false'
 
 jobs:
   newsletter:
@@ -38,7 +43,7 @@ jobs:
           echo "next_issue=$next" >> $GITHUB_OUTPUT
           echo "issue_url=https://www.deeplearning.ai/the-batch/issue-${next}/" >> $GITHUB_OUTPUT
 
-      - name: Debug and fetch newsletter
+      - name: Process newsletter
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
@@ -46,53 +51,82 @@ jobs:
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
           ISSUE_URL: ${{ steps.next_issue.outputs.issue_url }}
           ISSUE_NUMBER: ${{ steps.next_issue.outputs.next_issue }}
+          DEBUG_MODE: ${{ inputs.debug_mode }}
         run: |
-          echo "=== DEBUG ==="
+          echo "=== DEBUG INFO ==="
           echo "NOTION_DATABASE_ID length: ${#NOTION_DATABASE_ID}"
           echo "NOTION_TOKEN length: ${#NOTION_TOKEN}"
-          python -c "
-          import os
-          import sys
-          db_id = os.environ.get('NOTION_DATABASE_ID', 'EMPTY')
-          print(f'Python received NOTION_DATABASE_ID: [{db_id}]')
-          print(f'Length: {len(db_id)}')
-          if not db_id or len(db_id) < 10:
-              print('ERROR: NOTION_DATABASE_ID is empty or too short!')
-              sys.exit(1)
-          "
+          echo "DEBUG_MODE: $DEBUG_MODE"
           
-          python -c "
-          import os
-          from newsletter_tool import fetch_newsletter_text, gpt_summary_and_translation, save_to_notion, send_feishu_notification
-          
-          url = os.environ['ISSUE_URL']
-          issue = os.environ['ISSUE_NUMBER']
-          
-          print(f'抓取 Issue {issue}...')
-          text = fetch_newsletter_text(url)
-          
-          if text.startswith('⚠️'):
-              msg = f'❌ 抓取失败：{text}'
-              print(msg)
-              send_feishu_notification(False, issue, msg)
-              exit(1)
-          
-          print(f'生成摘要...')
-          summary = gpt_summary_and_translation(text)
-          
-          print(f'写入 Notion...')
-          try:
-              save_to_notion(summary, url)
-              send_feishu_notification(True, issue, summary[:500])
-              print('✅ 完成！')
-          except Exception as e:
-              msg = f'⚠️ Notion 写入失败：{str(e)}'
-              print(msg)
-              send_feishu_notification(False, issue, msg)
-              exit(1)
-          "
+          if [ "$DEBUG_MODE" == "true" ]; then
+            echo "=== 调试模式：跳过 AI 摘要 ==="
+            # 只测试抓取和 Notion 写入（用模拟摘要）
+            python -c "
+            import os
+            from newsletter_tool import fetch_newsletter_text, save_to_notion, send_feishu_notification
+            
+            url = os.environ['ISSUE_URL']
+            issue = os.environ['ISSUE_NUMBER']
+            
+            print(f'抓取 Issue {issue}...')
+            text = fetch_newsletter_text(url)
+            
+            if text.startswith('⚠️'):
+                msg = f'❌ 抓取失败：{text}'
+                print(msg)
+                send_feishu_notification(False, issue, msg)
+                exit(1)
+            
+            # 用抓取的内容前 500 字作为测试摘要
+            summary = f'[调试模式] 测试摘要\n\n{text[:500]}...\n\n(这是调试模式生成的测试摘要)'
+            
+            print(f'写入 Notion（调试模式）...')
+            try:
+                save_to_notion(summary, url)
+                send_feishu_notification(True, issue, '✅ 调试模式测试成功！')
+                print('✅ 完成！')
+            except Exception as e:
+                msg = f'⚠️ Notion 写入失败：{str(e)}'
+                print(msg)
+                send_feishu_notification(False, issue, msg)
+                exit(1)
+            "
+          else
+            echo "=== 正式模式 ==="
+            python -c "
+            import os
+            from newsletter_tool import fetch_newsletter_text, gpt_summary_and_translation, save_to_notion, send_feishu_notification
+            
+            url = os.environ['ISSUE_URL']
+            issue = os.environ['ISSUE_NUMBER']
+            
+            print(f'抓取 Issue {issue}...')
+            text = fetch_newsletter_text(url)
+            
+            if text.startswith('⚠️'):
+                msg = f'❌ 抓取失败：{text}'
+                print(msg)
+                send_feishu_notification(False, issue, msg)
+                exit(1)
+            
+            print(f'生成摘要...')
+            summary = gpt_summary_and_translation(text)
+            
+            print(f'写入 Notion...')
+            try:
+                save_to_notion(summary, url)
+                send_feishu_notification(True, issue, summary[:500])
+                print('✅ 完成！')
+            except Exception as e:
+                msg = f'⚠️ Notion 写入失败：{str(e)}'
+                print(msg)
+                send_feishu_notification(False, issue, msg)
+                exit(1)
+            "
+          fi
 
       - name: Update issue number
+        if: success()
         run: |
           # 更新 GitHub Variables 中的 issue 号
           echo "LAST_ISSUE_NUMBER=${{ steps.next_issue.outputs.next_issue }}" >> $GITHUB_ENV
