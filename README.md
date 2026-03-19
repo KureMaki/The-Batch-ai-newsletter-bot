@@ -1,132 +1,141 @@
-# AI Newsletter Summarizer
+# The Batch Newsletter Summarizer
 
-这是一个针对 The Batch Newsletter 的自动化工具：抓取文章正文，使用 OpenAI 生成英文摘要并翻译成中文，然后写入 Notion 数据库。提供了 Gradio 网页版入口，方便本地一键使用。
+自动化抓取 [The Batch Newsletter](https://www.deeplearning.ai/the-batch/) 并生成 AI 摘要的工具。支持本地网页模式和 GitHub Actions 自动任务模式。
 
-## ✨ 功能模式
+> ⚠️ **注意**：此工具专为 The Batch Newsletter 设计，其他网站的抓取逻辑可能需要调整。
 
-### 本地网页模式
-手动访问网页，输入 Newsletter 链接，一键完成抓取→摘要→写入 Notion。
+## ✨ 功能特点
 
-### 自动任务模式（GitHub Actions）
-每周六早上 10:00（东京时间）自动抓取最新 Newsletter，结果写入 Notion 并通过飞书通知。
+- **自动抓取**：定时或手动抓取 The Batch Newsletter 文章
+- **AI 摘要**：使用 OpenAI 生成中英文双语摘要
+- **Notion 存储**：自动写入 Notion 数据库
+- **飞书通知**：任务完成后通过飞书推送结果
+- **零成本托管**：GitHub Actions 免费运行，无需服务器
 
 ## 📁 目录结构
-- `app_launch.py`：Gradio 网页入口（**主要运行文件**）
-- `newsletter_tool.py`：核心逻辑库（抓取、GPT、Notion）
-- `run_debug.py`：GitHub Actions 调试模式入口（跳过 AI 摘要）
-- `run_newsletter.py`：GitHub Actions 正式模式入口
-- `Ai Newsletter Openai.ipynb`：Jupyter Notebook 版本（已同步核心逻辑）
-- `test_fetch.py`：简单的单篇抓取测试脚本
-- `test_newsletter.py`：基于 pytest 的单元测试
-- `requirements.txt`：项目依赖列表
 
-## 🛠️ 环境准备
-
-### 1. Python 环境
-项目已内置 `.venv/` 虚拟环境（推荐），也可用 conda 或其他虚拟环境。
-
-**使用 .venv/（推荐）：**
-```powershell
-# PowerShell
-.\.venv\Scripts\Activate.ps1
-
-# CMD
-.\.venv\Scripts\activate.bat
+```
+├── newsletter_tool.py       # 核心逻辑库
+├── app_launch.py           # Gradio 网页入口（本地使用）
+├── run_newsletter.py       # GitHub Actions 自动任务入口
+├── test_fetch.py          # 抓取测试脚本
+├── test_newsletter.py     # pytest 单元测试
+├── requirements.txt       # Python 依赖
+└── .github/
+    └── workflows/
+        └── weekly_newsletter.yml  # GitHub Actions 工作流
 ```
 
-**使用 conda：**
-```powershell
-conda activate ai-newsletter
+## 🚀 快速开始
+
+### 1. 克隆项目
+
+```bash
+git clone https://github.com/KureMaki/ai-newsletter-bot.git
+cd ai-newsletter-bot
 ```
 
 ### 2. 安装依赖
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 3. 配置环境变量
-在项目根目录创建 `.env` 文件，填入以下信息：
+
+创建 `.env` 文件：
+
 ```bash
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
-NOTION_TOKEN=secret_xxxxxxxxxxxxxxxxxxxxxx
-NOTION_DATABASE_ID=你的数据库ID
+# OpenAI API（必需）
+OPENAI_API_KEY=sk-your-openai-api-key
+
+# Notion（必需）
+NOTION_TOKEN=secret-your-notion-token
+NOTION_DATABASE_ID=your-database-id
+
+# 飞书通知（可选，不填则跳过通知）
 FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
 ```
 
-**Notion 数据库字段要求（区分大小写）：**
-- `名称` (Title)
-- `期号` (Rich text)
-- `链接` (URL)
+### 4. 配置 Notion 数据库
 
-## 🚀 运行方式
+创建 Notion 数据库，包含以下字段（区分大小写）：
 
-### 1) 启动 Gradio 网页版 (推荐)
+| 字段名 | 类型 |
+|--------|------|
+| `名称` | Title |
+| `期号` | Rich Text |
+| `链接` | URL |
+
+### 5. 本地运行
+
 ```bash
 python app_launch.py
 ```
-启动后，终端会显示本地 URL（通常是 `http://127.0.0.1:7860`）。在浏览器打开该链接，输入 Newsletter 文章网址即可。
 
-### 2) 运行单元测试
-验证核心逻辑是否正常（离线 Mock 测试，需先安装 pytest）：
-```bash
-pip install pytest
-pytest test_newsletter.py
-```
+浏览器打开 `http://127.0.0.1:7860`，输入 Newsletter 链接即可。
 
-### 3) 简单抓取测试
-仅测试文章抓取功能，不调用 OpenAI/Notion：
-```bash
-python test_fetch.py
-```
-
-### 4) Jupyter Notebook
-启动 Jupyter Lab 或 Notebook 打开 `Ai Newsletter Openai.ipynb`，按顺序运行单元格即可。现在 Notebook 直接复用 `newsletter_tool.py` 的逻辑，维护更方便。
-
-## ⚠️ 注意事项
-- **网络代理**：脚本会自动忽略系统代理环境变量（HTTP_PROXY 等），直接连接。如果需要通过代理访问，请在 `newsletter_tool.py` 的 `fetch_newsletter_text` 函数中修改 `session.proxies` 设置。
-- **OpenAI 模型**：默认使用 `gpt-4o`。如需更改，请修改 `newsletter_tool.py` 中的 `model` 参数。
-- **Notion 写入**：如果 Notion 写入失败（如网络波动），程序会**保留并显示**已生成的 GPT 摘要，避免重复扣费。
-
----
-
-## 🤖 自动任务模式（GitHub Actions）
-
-### 功能
-- 每周六早上 10:00（东京时间 UTC+9）自动执行
-- 抓取最新 Newsletter → 生成摘要 → 写入 Notion
-- 通过飞书发送执行结果通知（包含完整 AI 摘要）
+## 🤖 GitHub Actions 自动任务
 
 ### 部署步骤
 
-#### 1. GitHub Secrets 配置
-在 GitHub 仓库 Settings → Secrets and variables → Actions 中添加：
+#### 1. Fork 本仓库
 
-| Secret 名称 | 值 |
-|-------------|-----|
-| `OPENAI_API_KEY` | 你的 OpenAI API Key |
+#### 2. 添加 GitHub Secrets
+
+在仓库 Settings → Secrets and variables → Actions 中添加：
+
+| Secret | 说明 |
+|--------|------|
+| `OPENAI_API_KEY` | OpenAI API Key |
 | `NOTION_TOKEN` | Notion Integration Token |
 | `NOTION_DATABASE_ID` | Notion 数据库 ID |
-| `FEISHU_WEBHOOK_URL` | 飞书机器人 Webhook URL |
+| `FEISHU_WEBHOOK_URL` | 飞书 Webhook URL（可选） |
 
-#### 2. GitHub Variables 配置
-在 Settings → Secrets and variables → Actions → Variables 中添加：
+#### 3. 配置起始 Issue 号
 
-| Variable 名称 | 值 |
-|--------------|-----|
-| `LAST_ISSUE_NUMBER` | 当前最新一期号（如 344），下次会自动 +1 |
+在 Settings → Variables → Actions 中添加：
 
-#### 3. 手动触发测试
-在 GitHub 仓库 Actions 页面，选择 "Weekly Newsletter Automation" → Run workflow
+| Variable | 值 | 说明 |
+|----------|-----|------|
+| `LAST_ISSUE_NUMBER` | 当前最新一期号 | 下次会自动抓 `值+1` |
 
-**调试模式**：触发时设置 `debug_mode: true`，可跳过 AI 摘要生成，节省 token
+#### 4. 完成！
 
-#### 4. 飞书机器人配置
-1. 在飞书群中添加自定义机器人
-2. 复制 Webhook URL 到 GitHub Secrets
+工作流会在每周六自动执行。你也可以手动触发：
+- 进入 Actions 页面 → 点击 "Weekly Newsletter Automation" → "Run workflow"
 
-### 工作原理
-1. 读取 `LAST_ISSUE_NUMBER`，自动 +1 获取最新一期
-2. 抓取 Newsletter 网页内容
-3. 调用 GPT 生成中英文摘要
-4. 写入 Notion 数据库
-5. 通过飞书发送通知（包含完整摘要内容）
+### 自定义执行时间
+
+编辑 `.github/workflows/weekly_newsletter.yml`：
+
+```yaml
+schedule:
+  - cron: '0 1 * * 6'  # UTC 时间，改为你的时区
+```
+
+例如要改成北京时间周六 10:00：
+- 北京时间 = UTC+8，所以 `10-8=2`，填 `'0 2 * * 6'`
+
+### 调试模式
+
+手动触发时设置 `debug_mode: true`，可跳过 AI 摘要生成，节省 token。
+
+## 🔧 依赖
+
+- `openai>=1.0.0`
+- `gradio>=4.0.0`
+- `notion-client>=2.0.0`
+- `requests>=2.31.0`
+- `beautifulsoup4>=4.12.2`
+- `python-dotenv>=1.0.0`
+
+## ⚠️ 注意事项
+
+- 脚本会自动忽略系统代理环境变量
+- 默认使用 `gpt-4o` 模型，可在 `newsletter_tool.py` 中修改
+- 如果 Notion 写入失败，已生成的摘要会通过飞书通知显示
+
+## 📝 License
+
+MIT License
