@@ -95,7 +95,7 @@ def generate_summary(text):
     _ensure_env()
     
     # 截断过长文本
-    max_chars = 15000
+    max_chars = 60000
     if len(text) > max_chars:
         text = text[:max_chars] + "\n\n...[内容已截断]"
 
@@ -216,7 +216,7 @@ def _send_feishu(webhook_url, success, issue_number, content, summary):
     if success:
         title = "✅ Newsletter 更新完成"
         template = "green"
-        display_content = f"**Issue {issue_number}**\n\n{summary[:2000]}" if summary else f"**Issue {issue_number}**\n\n已成功抓取并写入 Notion"
+        display_content = f"**Issue {issue_number}**\n\n{summary[:4000]}" if summary else f"**Issue {issue_number}**\n\n已成功抓取并写入 Notion"
     else:
         title = "❌ Newsletter 更新失败"
         template = "red"
