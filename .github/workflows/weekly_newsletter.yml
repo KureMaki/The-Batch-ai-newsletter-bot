@@ -29,19 +29,12 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Get current issue number
-        id: get_issue
+      - name: Get latest issue number
+        id: latest_issue
+        env:
+          LAST_ISSUE_NUMBER: ${{ vars.LAST_ISSUE_NUMBER }}
         run: |
-          # 从环境变量获取上次 issue 号，默认从 323 开始
-          echo "current_issue=${{ vars.LAST_ISSUE_NUMBER || 323 }}" >> $GITHUB_OUTPUT
-
-      - name: Calculate next issue number
-        id: next_issue
-        run: |
-          current=${{ steps.get_issue.outputs.current_issue }}
-          next=$((current + 1))
-          echo "next_issue=$next" >> $GITHUB_OUTPUT
-          echo "issue_url=https://www.deeplearning.ai/the-batch/issue-${next}/" >> $GITHUB_OUTPUT
+          python get_latest_issue.py >> $GITHUB_OUTPUT
 
       - name: Process newsletter
         env:
@@ -49,8 +42,8 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-          ISSUE_URL: ${{ steps.next_issue.outputs.issue_url }}
-          ISSUE_NUMBER: ${{ steps.next_issue.outputs.next_issue }}
+          ISSUE_URL: ${{ steps.latest_issue.outputs.issue_url }}
+          ISSUE_NUMBER: ${{ steps.latest_issue.outputs.issue_number }}
           DEBUG_MODE: ${{ inputs.debug_mode }}
         run: |
           echo "=== DEBUG INFO ==="
@@ -66,8 +59,3 @@ jobs:
             python run_newsletter.py
           fi
 
-      - name: Update issue number
-        if: success()
-        run: |
-          # 更新 GitHub Variables 中的 issue 号
-          echo "LAST_ISSUE_NUMBER=${{ steps.next_issue.outputs.next_issue }}" >> $GITHUB_ENV
