@@ -17,6 +17,7 @@
 ```
 ├── newsletter_tool.py       # 核心逻辑库
 ├── app_launch.py           # Gradio 网页入口（本地使用）
+├── get_latest_issue.py     # 从网站抓取最新期号
 ├── run_newsletter.py       # GitHub Actions 自动任务入口
 ├── test_fetch.py           # 抓取测试脚本
 ├── test_newsletter.py      # pytest 单元测试
@@ -97,15 +98,7 @@ python app_launch.py
 | `NOTION_DATABASE_ID` | Notion 数据库 ID |
 | `FEISHU_WEBHOOK_URL` | 飞书 Webhook URL（可选） |
 
-#### 3. 配置起始 Issue 号
-
-在 Settings → Variables → Actions 中添加：
-
-| Variable | 值 | 说明 |
-|----------|-----|------|
-| `LAST_ISSUE_NUMBER` | 当前最新一期号 | 下次会自动抓 `值+1` |
-
-#### 4. 完成！
+#### 3. 完成！
 
 工作流会在每周六自动执行。你也可以手动触发：
 - 进入 Actions 页面 → 点击 "Weekly Newsletter Automation" → "Run workflow"
