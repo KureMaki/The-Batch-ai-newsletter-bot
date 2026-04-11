@@ -27,10 +27,22 @@ def get_latest_issue():
         if not matches:
             raise ValueError("页面中未找到任何 issue-XXX 链接，网站结构可能已变更")
 
-        latest = max(int(m) for m in matches)
-        issue_url = ISSUE_URL_TEMPLATE.format(latest)
+        candidates = sorted(set(int(m) for m in matches), reverse=True)
 
-        print(f"✅ 找到最新期号: {latest}", file=sys.stderr)
+        # 从最大期号开始，验证文章是否真实可访问
+        latest = None
+        for candidate in candidates[:5]:  # 最多往前找 5 期
+            url = ISSUE_URL_TEMPLATE.format(candidate)
+            check = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+            if check.status_code == 200 and "issue-" in check.url:
+                latest = candidate
+                issue_url = url
+                break
+
+        if latest is None:
+            raise ValueError("找不到任何已发布的期号，可能网站结构已变更")
+
+        print(f"✅ 找到最新已发布期号: {latest}", file=sys.stderr)
         print(f"issue_number={latest}")
         print(f"issue_url={issue_url}")
 
