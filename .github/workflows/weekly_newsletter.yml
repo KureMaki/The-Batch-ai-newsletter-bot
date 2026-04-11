@@ -32,7 +32,7 @@ jobs:
       - name: Get latest issue number
         id: latest_issue
         env:
-          LAST_ISSUE_NUMBER: ${{ vars.LAST_ISSUE_NUMBER }}
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
         run: |
           python get_latest_issue.py >> $GITHUB_OUTPUT
 

@@ -35,16 +35,33 @@ def get_latest_issue():
         print(f"issue_url={issue_url}")
 
     except Exception as e:
-        print(f"⚠️ 抓取最新期号失败: {e}", file=sys.stderr)
+        msg = f"❌ 无法获取最新期号，请检查网站结构是否变更：{e}"
+        print(msg, file=sys.stderr)
+        _notify_feishu(msg)
+        sys.exit(1)
 
-        fallback = os.getenv("LAST_ISSUE_NUMBER", "").strip()
-        if fallback and fallback.isdigit():
-            print(f"⚠️ 回退到 LAST_ISSUE_NUMBER: {fallback}", file=sys.stderr)
-            print(f"issue_number={fallback}")
-            print(f"issue_url={ISSUE_URL_TEMPLATE.format(fallback)}")
-        else:
-            print("❌ 无可用回退值，请在 GitHub Variables 中设置 LAST_ISSUE_NUMBER", file=sys.stderr)
-            sys.exit(1)
+
+def _notify_feishu(msg):
+    webhook_url = os.getenv("FEISHU_WEBHOOK_URL", "").strip()
+    if not webhook_url:
+        return
+    try:
+        import requests as _requests
+        payload = {
+            "msg_type": "interactive",
+            "card": {
+                "header": {
+                    "title": {"tag": "plain_text", "content": "⚠️ Newsletter 自动化异常"},
+                    "template": "red",
+                },
+                "elements": [
+                    {"tag": "div", "text": {"tag": "lark_md", "content": msg}},
+                ],
+            },
+        }
+        _requests.post(webhook_url, json=payload, timeout=10)
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
