@@ -1,19 +1,18 @@
 #!/usr/bin/env python
 # coding: utf-8
 """
-从 deeplearning.ai/the-batch/ 首页抓取最新期号。
-解析失败时发飞书警告并退出。
+从 last_issue.txt 读取上次期号，向后探测新期号（不抓首页，规避 Cloudflare IP 封锁）。
+探测成功后将新期号写回 last_issue.txt（由 CI 负责 commit）。
 """
 
-import re
 import sys
 import os
 import requests
+from pathlib import Path
 
-BASE_URL = "https://www.deeplearning.ai/the-batch/"
 ISSUE_URL_TEMPLATE = "https://www.deeplearning.ai/the-batch/issue-{}/"
+LAST_ISSUE_FILE = Path(__file__).parent / "last_issue.txt"
 
-# 仿真真实浏览器，避免被 Cloudflare / WAF 拦截
 _BROWSER_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -26,38 +25,61 @@ _BROWSER_HEADERS = {
 }
 
 
+def _read_last_known() -> int:
+    if LAST_ISSUE_FILE.exists():
+        return int(LAST_ISSUE_FILE.read_text().strip())
+    env_val = os.getenv("LAST_ISSUE_NUMBER", "").strip()
+    if env_val:
+        return int(env_val)
+    raise ValueError("未找到 last_issue.txt，且未设置 LAST_ISSUE_NUMBER 环境变量")
+
+
+def _is_accessible(url: str) -> bool:
+    try:
+        r = requests.get(url, timeout=10, headers=_BROWSER_HEADERS, allow_redirects=True)
+        return r.status_code == 200 and "issue-" in r.url
+    except Exception:
+        return False
+
+
 def get_latest_issue():
     try:
-        resp = requests.get(BASE_URL, timeout=15, headers=_BROWSER_HEADERS)
-        resp.raise_for_status()
-
-        matches = re.findall(r"issue-(\d+)", resp.text)
-        if not matches:
-            raise ValueError("页面中未找到任何 issue-XXX 链接，网站结构可能已变更")
-
-        candidates = sorted(set(int(m) for m in matches), reverse=True)
-
-        latest = None
-        for candidate in candidates[:5]:
-            url = ISSUE_URL_TEMPLATE.format(candidate)
-            check = requests.get(url, timeout=10, headers=_BROWSER_HEADERS)
-            if check.status_code == 200 and "issue-" in check.url:
-                latest = candidate
-                issue_url = url
-                break
-
-        if latest is None:
-            raise ValueError("找不到任何已发布的期号，可能网站结构已变更")
-
-        print(f"✅ 找到最新已发布期号: {latest}", file=sys.stderr)
-        print(f"issue_number={latest}")
-        print(f"issue_url={issue_url}")
-
+        last_known = _read_last_known()
     except Exception as e:
-        msg = f"❌ 无法获取最新期号，请检查网站结构是否变更：{e}"
+        msg = f"❌ 读取上次期号失败：{e}"
         print(msg, file=sys.stderr)
         _notify_feishu(msg)
         sys.exit(1)
+
+    # 向后探测最多 3 期新期号
+    found = None
+    for offset in range(1, 4):
+        candidate = last_known + offset
+        url = ISSUE_URL_TEMPLATE.format(candidate)
+        print(f"🔍 探测 issue-{candidate} ...", file=sys.stderr)
+        if _is_accessible(url):
+            found = (candidate, url)
+            break
+
+    # 没有新期号时，验证上次期号本身是否可访问（防止重复处理时静默失败）
+    if found is None:
+        url = ISSUE_URL_TEMPLATE.format(last_known)
+        print(f"🔍 探测 issue-{last_known} (上次期号) ...", file=sys.stderr)
+        if _is_accessible(url):
+            found = (last_known, url)
+
+    if found is None:
+        msg = f"❌ 无法访问任何期号页面（从 issue-{last_known} 开始探测），网站可能已封锁 CI IP"
+        print(msg, file=sys.stderr)
+        _notify_feishu(msg)
+        sys.exit(1)
+
+    issue_number, issue_url = found
+    print(f"✅ 找到期号: {issue_number}", file=sys.stderr)
+    # 更新 last_issue.txt 供 CI commit
+    LAST_ISSUE_FILE.write_text(f"{issue_number}\n")
+    print(f"issue_number={issue_number}")
+    print(f"issue_url={issue_url}")
 
 
 def _notify_feishu(msg):

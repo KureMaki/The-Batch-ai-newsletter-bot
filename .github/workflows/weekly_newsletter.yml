@@ -15,9 +15,11 @@ on:
 jobs:
   newsletter:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -60,4 +62,13 @@ jobs:
             echo "=== 正式模式 ==="
             python run_newsletter.py
           fi
+
+      - name: Commit updated last_issue.txt
+        if: success()
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add last_issue.txt
+          git diff --staged --quiet || git commit -m "chore: update last_issue to ${{ steps.latest_issue.outputs.issue_number }}"
+          git push
 
