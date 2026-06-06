@@ -2,7 +2,7 @@
 # coding: utf-8
 """
 从 deeplearning.ai/the-batch/ 首页抓取最新期号。
-解析失败时自动回退到 LAST_ISSUE_NUMBER 环境变量。
+解析失败时发飞书警告并退出。
 """
 
 import re
@@ -13,14 +13,22 @@ import requests
 BASE_URL = "https://www.deeplearning.ai/the-batch/"
 ISSUE_URL_TEMPLATE = "https://www.deeplearning.ai/the-batch/issue-{}/"
 
+# 仿真真实浏览器，避免被 Cloudflare / WAF 拦截
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/125.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+}
+
 
 def get_latest_issue():
     try:
-        resp = requests.get(
-            BASE_URL,
-            timeout=15,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; newsletter-bot/1.0)"},
-        )
+        resp = requests.get(BASE_URL, timeout=15, headers=_BROWSER_HEADERS)
         resp.raise_for_status()
 
         matches = re.findall(r"issue-(\d+)", resp.text)
@@ -29,11 +37,10 @@ def get_latest_issue():
 
         candidates = sorted(set(int(m) for m in matches), reverse=True)
 
-        # 从最大期号开始，验证文章是否真实可访问
         latest = None
-        for candidate in candidates[:5]:  # 最多往前找 5 期
+        for candidate in candidates[:5]:
             url = ISSUE_URL_TEMPLATE.format(candidate)
-            check = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+            check = requests.get(url, timeout=10, headers=_BROWSER_HEADERS)
             if check.status_code == 200 and "issue-" in check.url:
                 latest = candidate
                 issue_url = url
