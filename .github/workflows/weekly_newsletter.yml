@@ -11,6 +11,10 @@ on:
         description: '调试模式（跳过 AI 摘要，不消耗 token）'
         required: false
         default: 'false'
+      issue_number:
+        description: '手动指定期号（留空则自动检测）'
+        required: false
+        default: ''
 
 jobs:
   newsletter:
@@ -38,7 +42,14 @@ jobs:
         env:
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
         run: |
-          python get_latest_issue.py >> $GITHUB_OUTPUT
+          MANUAL="${{ inputs.issue_number }}"
+          if [ -n "$MANUAL" ]; then
+            echo "📌 使用手动指定期号: $MANUAL"
+            echo "issue_number=$MANUAL" >> $GITHUB_OUTPUT
+            echo "issue_url=https://www.deeplearning.ai/the-batch/issue-${MANUAL}/" >> $GITHUB_OUTPUT
+          else
+            python get_latest_issue.py >> $GITHUB_OUTPUT
+          fi
 
       - name: Process newsletter
         env:
@@ -54,7 +65,7 @@ jobs:
           echo "NOTION_DATABASE_ID length: ${#NOTION_DATABASE_ID}"
           echo "NOTION_TOKEN length: ${#NOTION_TOKEN}"
           echo "DEBUG_MODE: $DEBUG_MODE"
-          
+
           if [ "$DEBUG_MODE" == "true" ]; then
             echo "=== 调试模式：跳过 AI 摘要 ==="
             python run_debug.py
@@ -71,4 +82,3 @@ jobs:
           git add last_issue.txt
           git diff --staged --quiet || git commit -m "chore: update last_issue to ${{ steps.latest_issue.outputs.issue_number }}"
           git push
-
