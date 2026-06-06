@@ -17,7 +17,8 @@
 ```
 ├── newsletter_tool.py       # 核心逻辑库
 ├── app_launch.py           # Gradio 网页入口（本地使用）
-├── get_latest_issue.py     # 从网站抓取最新期号
+├── get_latest_issue.py     # 获取最新期号（通过 Jina AI Reader 绕过 Cloudflare）
+├── last_issue.txt          # 上次成功处理的期号（由 CI 自动维护）
 ├── run_newsletter.py       # GitHub Actions 自动任务入口
 ├── test_fetch.py           # 抓取测试脚本
 ├── test_newsletter.py      # pytest 单元测试
@@ -102,6 +103,8 @@ python app_launch.py
 
 工作流会在每周六自动执行。你也可以手动触发：
 - 进入 Actions 页面 → 点击 "Weekly Newsletter Automation" → "Run workflow"
+- `issue_number`（可选）：手动填写期号（如 `356`）可跳过自动检测，直接处理指定期
+- `debug_mode`（可选）：设为 `true` 跳过 AI 摘要，节省 token
 
 ### 自定义 LLM
 
@@ -127,6 +130,10 @@ schedule:
 
 手动触发时设置 `debug_mode: true`，可跳过 AI 摘要生成，节省 token。
 
+### 关于抓取方式
+
+期号检测和文章内容均通过 [Jina AI Reader](https://jina.ai/reader/)（`r.jina.ai`）中转请求，无需额外账号，可绕过 GitHub Actions IP 被 Cloudflare 封锁的问题。`last_issue.txt` 记录上次成功处理的期号，每次运行成功后由 CI 自动更新并提交。
+
 ## 🔧 依赖
 
 - `openai>=1.0.0`
@@ -134,7 +141,6 @@ schedule:
 - `gradio>=4.0.0`
 - `notion-client>=2.0.0`
 - `requests>=2.31.0`
-- `beautifulsoup4>=4.12.2`
 - `python-dotenv>=1.0.0`
 
 ## ⚠️ 注意事项
