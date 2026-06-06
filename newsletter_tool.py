@@ -7,7 +7,6 @@ The Batch Newsletter Summarizer
 """
 
 import requests
-from bs4 import BeautifulSoup
 import datetime
 import sys
 import re
@@ -299,7 +298,7 @@ def _send_discord(webhook_url, success, issue_number, content, summary):
 # ==================== 抓取 ====================
 
 def fetch_newsletter_text(url):
-    """抓取网站文章主体文本"""
+    """通过 Jina AI Reader 抓取文章主体文本（绕过 Cloudflare）"""
     try:
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):
@@ -307,29 +306,23 @@ def fetch_newsletter_text(url):
     except Exception:
         return "⚠️ 无效的 URL 格式"
 
-    headers = {"User-Agent": "Mozilla/5.0"}
-    session = requests.Session()
-    session.trust_env = False
+    jina_url = f"https://r.jina.ai/{url}"
     try:
-        r = session.get(
-            url,
-            headers=headers,
-            timeout=(10, 30),
-            proxies={"http": None, "https": None},
+        r = requests.get(
+            jina_url,
+            headers={"Accept": "text/plain", "X-No-Cache": "true"},
+            timeout=60,
         )
+        r.raise_for_status()
     except requests.exceptions.Timeout:
         return "⚠️ 抓取超时，请检查网络连接或稍后重试"
     except requests.exceptions.RequestException as e:
         return f"⚠️ 抓取失败：{str(e)}"
 
-    soup = BeautifulSoup(r.text, "html.parser")
-    content = soup.find("article") or soup.find("div", class_="prose")
-    if not content:
+    text = r.text.strip()
+    if not text:
         return "⚠️ 抓取失败，找不到文章主体"
-
-    paragraphs = content.find_all(["p", "h2", "li"])
-    texts = [p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)]
-    return "\n".join(texts)
+    return text
 
 
 # ==================== Notion 写入 ====================
